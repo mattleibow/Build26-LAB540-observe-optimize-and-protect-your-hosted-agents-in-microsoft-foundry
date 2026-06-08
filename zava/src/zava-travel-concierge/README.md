@@ -1,18 +1,18 @@
 # Zava Travel Concierge — Hosted Agent
 
-A multi-agent orchestration system built with [Agent Framework](https://github.com/microsoft/agent-framework) and hosted using the **Responses protocol**. The Concierge delegates to three specialist agents (flights, hotels, car rentals) using locally-defined Python tools registered with the `@tool` decorator.
+A multi-agent orchestration system built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) for .NET and hosted using the **Responses protocol**. The Concierge delegates to three specialist agents (flights, hotels, car rentals) using locally-defined C# tools registered with `AIFunctionFactory.Create`.
 
 ## How It Works
 
 ### Model Integration
 
-The agent uses `FoundryChatClient` from the Agent Framework to create a Responses client from the project endpoint and model deployment. The agent supports both streaming (SSE events) and non-streaming (JSON) response modes.
+The agent uses `AIProjectClient.AsAIAgent` from the Agent Framework to create a Responses client from the project endpoint and model deployment. The agent supports both streaming (SSE events) and non-streaming (JSON) response modes.
 
-See [main.py](main.py) for the full implementation.
+See [Program.cs](Program.cs) for the full implementation.
 
 ### Agent Hosting
 
-The agent is hosted using the [Agent Framework](https://github.com/microsoft/agent-framework) with the `ResponsesHostServer`, which provisions a REST API endpoint compatible with the OpenAI Responses protocol.
+The agent is hosted using the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) with `AgentHost` and `MapFoundryResponses` (from the `Microsoft.Agents.AI.Foundry.Hosting` package), which provisions a REST API endpoint compatible with the OpenAI Responses protocol.
 
 ## Running the Agent Host
 
@@ -22,7 +22,7 @@ Follow the instructions in the [Running the Agent Host Locally](../../README.md#
 
 > Depending on how you run the agent host, you can invoke the agent using `curl` (`Invoke-WebRequest` in PowerShell) or `azd`. Please refer to the [parent README](../../README.md) for more details. Use this README for sample queries you can send to the agent.
 
-Send a POST request to the server with a JSON body containing a "message" field to interact with the agent. For example:
+Send a POST request to the server with a JSON body containing an "input" field to interact with the agent. For example:
 
 ```bash
 curl -X POST http://localhost:8088/responses -H "Content-Type: application/json" -d '{"input": "What flights are available from Chicago to Rome?"}'

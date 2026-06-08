@@ -82,7 +82,7 @@ Known issues and fixes for problems learners hit during LAB540.
 
 **Workarounds:**
 1. **Use ASCII-only instructions** as your seed (replace `—` with `--`, `…` with `...`, `"smart quotes"` with `"straight quotes"`).
-2. **Manually fix the output** before pasting back into `main.py` — do a find/replace on the mojibake patterns.
+2. **Manually fix the output** before pasting back into `Program.cs` — do a find/replace on the mojibake patterns.
 3. **Treat the optimizer output as a suggestion**, not as final text — read it, decide what's good, and rewrite it cleanly.
 
 ---
@@ -107,7 +107,7 @@ Known issues and fixes for problems learners hit during LAB540.
 
 ### `azd deploy` rebuilds the container from scratch every time
 
-**This is correct behavior.** The hosted agent is a container image; any change to `main.py`, `requirements.txt`, or instructions requires a rebuild + push to ACR + new revision deployed.
+**This is correct behavior.** The hosted agent is a container image; any change to `Program.cs`, `zava-concierge.csproj`, or instructions requires a rebuild + push to ACR + new revision deployed.
 
 To speed iterations:
 - Use the bare `azd deploy` (not `azd up`) — skips infra provisioning.

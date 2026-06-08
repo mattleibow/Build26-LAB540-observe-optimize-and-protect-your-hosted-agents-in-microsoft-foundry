@@ -26,7 +26,7 @@ Install these on your machine:
 | Azure CLI (`az`) | [Install](https://learn.microsoft.com/cli/azure/install-azure-cli) |
 | Azure Developer CLI (`azd`) ≥ 1.25 | [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) |
 | Docker Desktop | [Install](https://docs.docker.com/get-docker/) |
-| Python 3.10+ | [Install](https://python.org) |
+| .NET 10 SDK | [Install](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | VS Code | [Install](https://code.visualstudio.com/) |
 | GitHub Copilot extension | Install from VS Code Extensions panel |
 
@@ -53,7 +53,7 @@ Confirm in the terminal:
 az version
 azd version
 docker info
-python --version
+dotnet --version
 ```
 
 All four should print a version (Docker should print engine info without

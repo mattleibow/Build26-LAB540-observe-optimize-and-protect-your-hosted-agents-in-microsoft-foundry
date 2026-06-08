@@ -76,7 +76,7 @@ listed).
 > [!Knowledge] First-load timing
 > The first time a Codespace launches it can take 60–90 seconds to
 > build the dev container. The container pre-installs `az`, `azd`,
-> Docker, Python, and the Foundry tooling so you don't have to.
+> Docker, the .NET 10 SDK, and the Foundry tooling so you don't have to.
 
 - [] My Codespace is open and the VS Code UI has loaded in the browser.
 

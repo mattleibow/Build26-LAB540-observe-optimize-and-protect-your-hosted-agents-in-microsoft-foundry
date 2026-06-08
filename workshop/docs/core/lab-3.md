@@ -58,14 +58,14 @@ The optimizer will:
 > **⚠️ Unicode gotcha.** If your current instructions contain em-dashes (`—`),
 > smart quotes, bullet characters, or emoji, the optimizer's JSON round-trip
 > can return mojibake (e.g. `—` → `â€”`). Before pasting the optimized text
-> into `main.py`, scan for garbled characters and fix them. To avoid this
-> entirely, keep `CONCIERGE_INSTRUCTIONS` ASCII-only as your seed. See
+> into `Program.cs`, scan for garbled characters and fix them. To avoid this
+> entirely, keep `ConciergeInstructions` ASCII-only as your seed. See
 > [TROUBLESHOOTING.md](../TROUBLESHOOTING.md#prompt_optimize-returns-instructions-with-garbled--mojibake-characters).
 
 ## Step 3.3: Redeploy the Agent
 
-After editing `CONCIERGE_INSTRUCTIONS` in
-`zava/src/zava-travel-concierge/main.py`, redeploy with the bare
+After editing `ConciergeInstructions` in
+`zava/src/zava-travel-concierge/Program.cs`, redeploy with the bare
 `azd deploy` command — it skips infra provisioning and just rebuilds +
 pushes the container, then publishes a new hosted-agent revision:
 
@@ -96,7 +96,7 @@ azd deploy
 > - **Use the code in the current directory**
 > - Agent name: `zava-concierge` → confirm "Yes" to reuse existing
 > - Model: **Use an existing model deployment** → `gpt-4.1-mini`
-> - Startup command: `python main.py`
+> - Startup command: `dotnet zava-concierge.dll`
 >
 > This writes `.azure/` and `agent.yaml` locally. Then run `azd deploy`
 > again — it will build and push normally.

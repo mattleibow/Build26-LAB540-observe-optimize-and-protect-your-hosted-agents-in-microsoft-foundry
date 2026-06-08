@@ -40,7 +40,7 @@ To see continuous eval in action, generate some agent traffic:
 
 ```bash
 # Run the load test script to simulate conversations
-python scripts/load-test.py --conversations 20 --delay 5
+dotnet run scripts/load-test.cs -- --total 20 --concurrency 5
 ```
 
 This sends 20 diverse travel queries to your agent, simulating real usage.

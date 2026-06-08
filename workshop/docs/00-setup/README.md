@@ -39,11 +39,11 @@ After completing your path-specific steps, both paths converge in
 | Azure CLI (`az`) | ✅ Pre-installed | 🔧 [Install](https://learn.microsoft.com/cli/azure/install-azure-cli) |
 | Azure Developer CLI (`azd`) ≥ 1.25 | ✅ Pre-installed | 🔧 [Install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) |
 | Docker | ✅ Pre-installed | 🔧 [Install](https://docs.docker.com/get-docker/) |
-| Python 3.10+ | ✅ Pre-installed | 🔧 [Install](https://python.org) |
+| .NET 10 SDK | ✅ Pre-installed | 🔧 [Install](https://dotnet.microsoft.com/download/dotnet/10.0) |
 
 ## Familiarity Expected
 
-- Basic Python (reading/editing scripts)
+- Basic C# (reading/editing code)
 - VS Code (terminal, extensions, Copilot Chat)
 - Agentic AI concepts (agents, tools, orchestration)
 - Azure basics (resource groups, deployments)

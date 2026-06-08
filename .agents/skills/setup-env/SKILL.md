@@ -84,7 +84,7 @@ Record in `workshop/progress.json` (`path` field).
 Dictate:
 
 ```bash
-az version | head -1 && azd version | head -1 && docker info --format '{{.ServerVersion}}' 2>&1 | head -1 && python --version
+az version | head -1 && azd version | head -1 && docker info --format '{{.ServerVersion}}' 2>&1 | head -1 && dotnet --version
 ```
 
 Ask the learner to paste the output. Validate:
@@ -92,7 +92,7 @@ Ask the learner to paste the output. Validate:
 - `az` present
 - `azd` ≥ 1.25
 - Docker running (ServerVersion line, not an error)
-- Python ≥ 3.10
+- .NET SDK ≥ 10
 
 If any check fails, point them at
 [`workshop/docs/00-setup/self-guided/1-prereqs.md`](../../../workshop/docs/00-setup/self-guided/1-prereqs.md)
@@ -101,7 +101,7 @@ and pause until they fix it.
 **Achievement:**
 ```
 ✅ Phase 2: Prerequisites OK
-   az <ver>, azd <ver>, docker <ver>, python <ver>.
+   az <ver>, azd <ver>, docker <ver>, dotnet <ver>.
 ```
 
 ### Phase 3 — Azure auth

@@ -18,7 +18,7 @@ The learner says something like:
 1. **Identify what needs explaining**: Look at the most recent output, result, or concept the learner is asking about.
 
 2. **Explain at the right level**: The target audience knows:
-   - Basic Python
+   - Basic .NET 10 / C#
    - VS Code
    - General AI/ML concepts
    - Azure basics

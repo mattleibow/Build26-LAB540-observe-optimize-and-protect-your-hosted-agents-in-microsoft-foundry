@@ -13,7 +13,7 @@ Modern agents can fail in ways that traditional monitoring can't catch. In this 
 
 ### Business Scenario
 
-Zava Travel is a fictitious premium travel agency specializing in international travel experiences. The team has built the Zava Travel Concierge — an AI-powered multi-agent system that orchestrates specialist agents for flights, hotels, and car rentals to plan complete itineraries. The Concierge does *not* answer questions from its own knowledge — it delegates to these specialist sub-agents, each of which owns one CSV data source and exposes typed Python tools to query it. This is a new agent (with no pre-existing test datasets) and the team needs to ensure that agent responses are reliable, safe and high-quality even as demand scales and requirements change.
+Zava Travel is a fictitious premium travel agency specializing in international travel experiences. The team has built the Zava Travel Concierge — an AI-powered multi-agent system that orchestrates specialist agents for flights, hotels, and car rentals to plan complete itineraries. The Concierge does *not* answer questions from its own knowledge — it delegates to these specialist sub-agents, each of which owns one CSV data source and exposes typed C# tools to query it. This is a new agent (with no pre-existing test datasets) and the team needs to ensure that agent responses are reliable, safe and high-quality even as demand scales and requirements change.
 
 ```mermaid
 flowchart LR
@@ -62,7 +62,7 @@ To complete this lab you must have:
 
 1. An Azure subscription
 1. A GitHub account (with a GitHub Copilot subscription)
-1. Familiarity with Python, VS Code & Agentic AI lifecycles
+1. Familiarity with .NET 10 / C#, VS Code & Agentic AI lifecycles
 
 _An Azure subscription and GitHub Copilot subscription are provided to
 in-venue attendees. Self-guided learners should bring their own._

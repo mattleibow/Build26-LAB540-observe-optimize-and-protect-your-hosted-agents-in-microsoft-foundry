@@ -25,13 +25,13 @@ Before you deploy, here's what you're about to bring up:
       │      │              │
       ▼      ▼              ▼
   flight_   hotel_       car_rental_   ← specialist sub-agents
-  agent     agent        agent            (each wraps a @tool fn)
+  agent     agent        agent            (each wraps a tool fn)
       │      │              │
       ▼      ▼              ▼
   flights.csv hotels.csv car_rentals.csv   ← grounding data
 ```
 
-All five pieces live in `zava/src/zava-travel-concierge/main.py`. The agent
+All five pieces live in `zava/src/zava-travel-concierge/Program.cs`. The agent
 is containerized (Dockerfile in the same folder), pushed to ACR, and run as
 a Foundry hosted agent. You'll see all of this in Lab 2 when you trace a
 call end-to-end.

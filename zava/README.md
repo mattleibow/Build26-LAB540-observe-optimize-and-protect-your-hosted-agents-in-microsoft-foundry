@@ -15,7 +15,7 @@ observe, evaluate, and optimize during the workshop.
 >    path uses.
 > 2. **Read the code** — use it as a reference for how to wire a
 >    multi-agent system into the Foundry hosting runtime with the
->    [Microsoft Agent Framework][agent-framework] in Python.
+>    [Microsoft Agent Framework][agent-framework] in C# / .NET.
 
 ---
 
@@ -25,7 +25,7 @@ Zava Travel is a fictitious premium travel agency. Its **Concierge** is
 the single AI assistant a traveler talks to. The Concierge does *not*
 answer questions from its own knowledge — it delegates to three
 specialist sub-agents, each of which owns one CSV data source and
-exposes typed Python tools to query it.
+exposes typed C# tools to query it.
 
 ```mermaid
 flowchart LR
@@ -48,7 +48,7 @@ flowchart LR
 Supported cities: **Paris, London, Tokyo, Rome, Cancún**.
 
 The Concierge is shipped with **intentionally minimal** instructions
-(~12 lines in `main.py`). A much richer rulebook lives in
+(~12 lines in `Program.cs`). A much richer rulebook lives in
 [`src/zava-travel-concierge/data/zava-travel-instructions.md`](src/zava-travel-concierge/data/zava-travel-instructions.md).
 This gap is the workshop's *teaching moment* — the Foundry `observe`
 skill detects the resulting failure clusters and the `prompt_optimize`
@@ -69,9 +69,10 @@ zava/
     └── zava-travel-concierge/      # the agent itself (this is what gets containerized)
         ├── agent.yaml              # ContainerAgent spec — runtime config
         ├── agent.manifest.yaml     # Agent template manifest — model & resource deps
-        ├── Dockerfile              # python:3.12-slim + main.py
-        ├── main.py                 # multi-agent code (concierge + 3 specialists)
-        ├── requirements.txt        # agent-framework, agent-framework-foundry-hosting
+        ├── Dockerfile              # dotnet/aspnet:10.0 + zava-concierge.dll
+        ├── Program.cs              # host wiring (concierge + 3 specialists)
+        ├── ZavaCatalog.cs          # CSV loaders + the specialists' search tools
+        ├── zava-concierge.csproj   # Microsoft.Agents.AI.Foundry.Hosting, Azure.AI.Projects
         ├── data/                   # CSVs the specialists query (flights, hotels, cars)
         └── .foundry/               # workshop seed — datasets & evaluators
 ```
@@ -88,53 +89,55 @@ The `azd` runtime cares about three top-level files:
 
 ## 3. Code walkthrough
 
-All the agent code lives in a single
-[`src/zava-travel-concierge/main.py`](src/zava-travel-concierge/main.py).
-It has four parts.
+The agent code lives in
+[`src/zava-travel-concierge/Program.cs`](src/zava-travel-concierge/Program.cs)
+(host wiring) and
+[`src/zava-travel-concierge/ZavaCatalog.cs`](src/zava-travel-concierge/ZavaCatalog.cs)
+(data loaders + tools). It has four parts.
 
 ### 3.1 Data loaders
 
 Three CSVs (`flights.csv`, `hotels.csv`, `car_rentals.csv`) are loaded
-once at import time into in-memory lists. No database, no I/O on the hot
+once at startup into in-memory lists. No database, no I/O on the hot
 path — keeps cold-start fast and behavior deterministic for
 evaluation.
 
 ### 3.2 Tools
 
-Each specialist's data source is wrapped in one `@tool`-decorated
-function — `search_flights`, `search_hotels`, `search_car_rentals` —
-with typed parameters via `pydantic.Field` so the model gets a clean
-JSON schema. `approval_mode="never_require"` lets the agent call them
-without a human-approval round-trip.
+Each specialist's data source is wrapped in one search method —
+`SearchFlights`, `SearchHotels`, `SearchCarRentals` — registered with
+`AIFunctionFactory.Create`. Typed parameters carry `[Description]`
+attributes so the model gets a clean JSON schema. The function tools run
+in-process and are invoked without a human-approval round-trip.
 
 ### 3.3 The specialist sub-agents
 
-```python
-flight_agent = Agent(
-    client=_make_client(),
-    name="flight_agent",
-    instructions="You are the Zava Flight Specialist. ...",
-    tools=[search_flights],
-)
+```csharp
+AIAgent flightAgent = projectClient.AsAIAgent(
+    model: deployment,
+    name: "flight_agent",
+    instructions: "You are the Zava Flight Specialist. ...",
+    tools: [AIFunctionFactory.Create(ZavaTools.SearchFlights, "search_flights", "...")]);
 ```
 
-Each specialist is a normal Agent Framework `Agent` with its own
+Each specialist is a normal Agent Framework `AIAgent` with its own
 instructions and a single tool. The Concierge then converts them to
-**callable tools** via `agent.as_tool(...)`. This is the
+**callable tools** via `agent.AsAIFunction()`. This is the
 [multi-agent orchestration pattern][agent-framework-multi-agent] —
 sub-agents *are* tools to their parent.
 
 ### 3.4 The hosted runtime
 
-```python
-from agent_framework_foundry_hosting import ResponsesHostServer
+```csharp
+using Microsoft.Agents.AI.Foundry.Hosting;
 
-def main() -> None:
-    server = ResponsesHostServer(_build_concierge())
-    server.run()
+var builder = AgentHost.CreateBuilder(args);
+builder.Services.AddFoundryResponses(concierge);
+builder.RegisterProtocol("responses", endpoints => endpoints.MapFoundryResponses());
+builder.Build().Run();
 ```
 
-`ResponsesHostServer` exposes the Concierge over the OpenAI-compatible
+`MapFoundryResponses` exposes the Concierge over the OpenAI-compatible
 **Responses protocol** on port 8088. That's what the Foundry hosting
 infrastructure invokes — and what `azd ai agent invoke` calls when you
 test the agent.
@@ -150,8 +153,8 @@ container:
 | `AZURE_AI_MODEL_DEPLOYMENT_NAME` | `agent.yaml` `environment_variables` |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Hosting runtime (if monitoring is on) |
 
-For local runs (`azd ai agent run` or plain `python main.py`), the same
-values come from your `.env`. `main.py` accepts either
+For local runs (`azd ai agent run` or plain `dotnet run`), the same
+values come from your `.env`. `Program.cs` accepts either
 `FOUNDRY_PROJECT_ENDPOINT` (the runtime name) or
 `AZURE_AI_PROJECT_ENDPOINT` (the Bicep output / `.env` name).
 
@@ -159,8 +162,8 @@ values come from your `.env`. `main.py` accepts either
 
 ## 4. Deploy it
 
-> **Prereqs**: Azure subscription, `az`, `azd` ≥ 1.25, Docker, Python
-> 3.10+. Run `az login` and `azd auth login` once before you start.
+> **Prereqs**: Azure subscription, `az`, `azd` ≥ 1.25, Docker, .NET 10
+> SDK. Run `az login` and `azd auth login` once before you start.
 
 ### 4.1 Provision + build + deploy in one shot
 
@@ -226,19 +229,18 @@ If `azd up` prompts you for a location and you're not sure, pick
 
 For tight inner-loop changes you can run the agent against an existing
 Foundry project without redeploying every time. You still need a Foundry
-project + a `gpt-4.1-mini` deployment in Azure — but `main.py` runs
+project + a `gpt-4.1-mini` deployment in Azure — but `Program.cs` runs
 locally on your machine.
 
 ```bash
 cd zava/src/zava-travel-concierge
-pip install -r requirements.txt
 
 # point at an existing Foundry project (e.g. one provisioned by `azd up` earlier)
 export AZURE_AI_PROJECT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project>"
 export AZURE_AI_MODEL_DEPLOYMENT_NAME="gpt-4.1-mini"
 az login    # DefaultAzureCredential picks this up
 
-python main.py
+dotnet run
 # server listening on :8088
 ```
 
@@ -273,10 +275,10 @@ shortest path:
    azd ai agent init -m path/to/agent.manifest.yaml
    ```
 
-2. **Copy the four files** that make Zava work:
-   - [`src/zava-travel-concierge/main.py`](src/zava-travel-concierge/main.py) — replace the tools/instructions with your own
+2. **Copy the key files** that make Zava work:
+   - [`src/zava-travel-concierge/Program.cs`](src/zava-travel-concierge/Program.cs) and [`ZavaCatalog.cs`](src/zava-travel-concierge/ZavaCatalog.cs) — replace the tools/instructions with your own
    - [`src/zava-travel-concierge/Dockerfile`](src/zava-travel-concierge/Dockerfile) — unchanged
-   - [`src/zava-travel-concierge/requirements.txt`](src/zava-travel-concierge/requirements.txt) — adjust for your deps
+   - [`src/zava-travel-concierge/zava-concierge.csproj`](src/zava-travel-concierge/zava-concierge.csproj) — adjust for your deps
    - [`src/zava-travel-concierge/agent.yaml`](src/zava-travel-concierge/agent.yaml) — rename, adjust resources
 
 3. **Deploy** with `azd up`.
@@ -295,7 +297,7 @@ hardcoding. Reuse as-is.
 | `azd up` quickstart | <https://learn.microsoft.com/azure/foundry/agents/quickstarts/quickstart-hosted-agent> |
 | `azd ai agent` extension | <https://learn.microsoft.com/azure/developer/azure-developer-cli/extensions/azure-ai-foundry-extension> |
 | Deploy a hosted agent (SDK + REST) | <https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent> |
-| Agent Framework (Python) | <https://github.com/microsoft/agent-framework> |
+| Agent Framework (.NET) | <https://github.com/microsoft/agent-framework> |
 
 [foundry-hosted-agents]: https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents
 [agent-framework]: https://github.com/microsoft/agent-framework

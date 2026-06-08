@@ -24,9 +24,13 @@ Thumbs.db
 
 # Dependencies (if applicable)
 node_modules/
-__pycache__/
-*.pyc
-.venv/
+
+# .NET build output
+bin/
+obj/
+
+# Per-learner load-test artifacts (regenerated on every run)
+**/.foundry/loadtest/
 
 # Do not commit (staging only)
 .do_not_commit/

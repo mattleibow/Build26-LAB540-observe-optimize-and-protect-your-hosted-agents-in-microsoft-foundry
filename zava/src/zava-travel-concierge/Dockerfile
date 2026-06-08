@@ -1,16 +1,15 @@
-FROM python:3.12-slim
-
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
-
-COPY . user_agent/
-WORKDIR /app/user_agent
-
-RUN if [ -f requirements.txt ]; then \
-        pip install -r requirements.txt; \
-    else \
-        echo "No requirements.txt found"; \
-    fi
-
 EXPOSE 8088
+ENV ASPNETCORE_URLS=http://+:8088
 
-CMD ["python", "main.py"]
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet restore
+RUN dotnet publish -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "zava-concierge.dll"]
