@@ -10,7 +10,7 @@ azd extension install azure.ai.agents || \
     echo "WARN: failed to install azure.ai.agents extension; install manually with 'azd extension install azure.ai.agents'."
 
 echo "Restoring .NET dependencies for the Zava Concierge agent ..."
-dotnet restore zava/src/zava-travel-concierge/zava-concierge.csproj
+dotnet restore zava/src/zava-travel-concierge/Program.cs
 
 echo "Verifying .NET SDK ..."
 dotnet --info | head -5
