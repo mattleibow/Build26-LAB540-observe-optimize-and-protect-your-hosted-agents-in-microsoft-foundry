@@ -19,6 +19,8 @@ template:
   environment_variables:
     - name: AZURE_AI_MODEL_DEPLOYMENT_NAME
       value: "{{AZURE_AI_MODEL_DEPLOYMENT_NAME}}"
+    - name: AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED
+      value: "true"
 resources:
   - kind: model
     id: gpt-4.1-mini

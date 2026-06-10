@@ -28,54 +28,8 @@ using DotNetEnv;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Foundry.Hosting;
 using Microsoft.Extensions.AI;
-
-// ============================================================================
-// WORKSHOP SAFETY NOTE — DO NOT COMMIT EDITS TO ConciergeInstructions
-// ============================================================================
-// This string is the seed agent prompt that ships with the workshop. In
-// Lab 3 you will edit it locally to test optimizations, then redeploy
-// with `azd deploy` to evaluate the change.
-//
-// Those edits are EXPERIMENTAL and per-learner. They must stay in your
-// working tree only. If you `git add` and `git commit` this file with
-// your changes:
-//   - Other learners pulling the workshop will inherit your hypothesis
-//     as their starting point.
-//   - The baseline-vs-optimized comparison flow in Lab 3 breaks (because
-//     "baseline" is no longer the seed).
-//
-// Before committing anything in zava/src/zava-travel-concierge/, run:
-//     git diff Program.cs
-// and confirm ConciergeInstructions is unchanged from the template.
-// If you intentionally want to update the seed (e.g. as a workshop
-// maintainer), open a PR and call that out explicitly in the description.
-// ============================================================================
-const string ConciergeInstructions =
-    """
-    You are the **Zava Travel Concierge**, the single AI assistant that travelers
-    talk to at Zava Travel — a premium agency that books flights, hotels, and car
-    rentals across Paris, London, Tokyo, Rome, and Cancún.
-
-    You are warm, professional, and concise. You never answer flight, hotel, or
-    car-rental questions from your own knowledge — you delegate to specialist
-    agents available as tools:
-
-    - `flight_agent` — for routes, airlines, cabin classes, prices, availability
-    - `hotel_agent` — for properties, star ratings, amenities, nightly rates
-    - `car_rental_agent` — for vehicles, daily rates, pickup cities
-
-    Rules:
-    1. For multi-component requests (e.g. "plan a trip…"), call each relevant
-        specialist independently in parallel, then merge the results into one
-        itinerary.
-    2. Always cite the Zava ID (e.g. ZV-FL-013, ZV-HT-010, ZV-CR-011), price, and
-        dates in your recommendation.
-    3. Never fabricate flights, hotels, vehicles, prices, or IDs. If a specialist
-        returns no results, say so plainly.
-    4. Lead with the recommendation, then a short reason it fits. Offer one
-        meaningful alternative when useful. Currency is USD unless stated.
-    5. Decline non-travel, unsafe, or policy-violating requests in one sentence.
-    """;
+using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 
 // Load environment variables from .env (when running locally) and from the
 // Foundry hosting environment (when running in the container in Azure).
@@ -88,6 +42,26 @@ var Cars = LoadCsv("car_rentals.csv");
 AIProjectClient projectClient = CreateProjectClient();
 string deployment = Environment.GetEnvironmentVariable("AZURE_AI_MODEL_DEPLOYMENT_NAME")
     ?? throw new InvalidOperationException("AZURE_AI_MODEL_DEPLOYMENT_NAME is not set.");
+
+// ---------------------------------------------------------------------------
+// Tracing — the Agent Framework emits OpenTelemetry `gen_ai.*` spans (the
+// "conversation turns" Foundry shows) ONLY when each agent is wrapped with the
+// OpenTelemetry delegating agent. The agent `name` flows into `gen_ai.agent.name`,
+// which is what the Foundry conversation/Agents view groups on. Content recording
+// (user prompts, tool args, model outputs) is opt-in and gated below.
+// ---------------------------------------------------------------------------
+const string TelemetrySourceName = "ZavaTravelConcierge";
+
+// AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED=true (set in agent.yaml) turns on
+// message-content capture in the spans. Leave it off in production.
+bool recordContent =
+    (Environment.GetEnvironmentVariable("AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED") ?? string.Empty)
+        .Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
+
+AIAgent WithTelemetry(AIAgent agent) =>
+    agent.AsBuilder()
+        .UseOpenTelemetry(TelemetrySourceName, configure: otel => otel.EnableSensitiveData = recordContent)
+        .Build();
 
 // ---------------------------------------------------------------------------
 // Flight search tool — queries the Zava flights catalog by route, cabin, price
@@ -154,7 +128,7 @@ string SearchCarRentals(
 // Specialist sub-agents — each wraps a single CSV-backed tool
 // ---------------------------------------------------------------------------
 
-AIAgent flightAgent = projectClient.AsAIAgent(
+AIAgent flightAgent = WithTelemetry(projectClient.AsAIAgent(
     model: deployment,
     name: "flight_agent",
     description: "Searches the Zava flights catalog and recommends flights by route, cabin class, and price.",
@@ -167,9 +141,9 @@ AIAgent flightAgent = projectClient.AsAIAgent(
     tools: [AIFunctionFactory.Create(
         SearchFlights,
         "search_flights",
-        "Search the Zava flights catalog. Returns matching flights with id, airline, route, dates, cabin, and price.")]);
+        "Search the Zava flights catalog. Returns matching flights with id, airline, route, dates, cabin, and price.")]));
 
-AIAgent hotelAgent = projectClient.AsAIAgent(
+AIAgent hotelAgent = WithTelemetry(projectClient.AsAIAgent(
     model: deployment,
     name: "hotel_agent",
     description: "Searches the Zava hotels catalog and recommends properties by city, star rating, amenities, and budget.",
@@ -182,9 +156,9 @@ AIAgent hotelAgent = projectClient.AsAIAgent(
     tools: [AIFunctionFactory.Create(
         SearchHotels,
         "search_hotels",
-        "Search the Zava hotels catalog. Returns properties with id, name, city, star rating, nightly price, and amenities.")]);
+        "Search the Zava hotels catalog. Returns properties with id, name, city, star rating, nightly price, and amenities.")]));
 
-AIAgent carRentalAgent = projectClient.AsAIAgent(
+AIAgent carRentalAgent = WithTelemetry(projectClient.AsAIAgent(
     model: deployment,
     name: "car_rental_agent",
     description: "Searches the Zava car rental catalog and recommends vehicles by city, type, and daily price.",
@@ -198,13 +172,61 @@ AIAgent carRentalAgent = projectClient.AsAIAgent(
     tools: [AIFunctionFactory.Create(
         SearchCarRentals,
         "search_car_rentals",
-        "Search the Zava car rental catalog. Returns vehicles with id, company, city, type, daily price, and availability.")]);
+        "Search the Zava car rental catalog. Returns vehicles with id, company, city, type, daily price, and availability.")]));
 
 // ---------------------------------------------------------------------------
 // The Concierge — orchestrates the specialists as callable tools
 // ---------------------------------------------------------------------------
 
-AIAgent concierge = projectClient.AsAIAgent(
+// ============================================================================
+// WORKSHOP SAFETY NOTE — DO NOT COMMIT EDITS TO ConciergeInstructions
+// ============================================================================
+// This string is the seed agent prompt that ships with the workshop. In
+// Lab 3 you will edit it locally to test optimizations, then redeploy
+// with `azd deploy` to evaluate the change.
+//
+// Those edits are EXPERIMENTAL and per-learner. They must stay in your
+// working tree only. If you `git add` and `git commit` this file with
+// your changes:
+//   - Other learners pulling the workshop will inherit your hypothesis
+//     as their starting point.
+//   - The baseline-vs-optimized comparison flow in Lab 3 breaks (because
+//     "baseline" is no longer the seed).
+//
+// Before committing anything in zava/src/zava-travel-concierge/, run:
+//     git diff Program.cs
+// and confirm ConciergeInstructions is unchanged from the template.
+// If you intentionally want to update the seed (e.g. as a workshop
+// maintainer), open a PR and call that out explicitly in the description.
+// ============================================================================
+const string ConciergeInstructions =
+    """
+    You are the **Zava Travel Concierge**, the single AI assistant that travelers
+    talk to at Zava Travel — a premium agency that books flights, hotels, and car
+    rentals across Paris, London, Tokyo, Rome, and Cancún.
+
+    You are warm, professional, and concise. You never answer flight, hotel, or
+    car-rental questions from your own knowledge — you delegate to specialist
+    agents available as tools:
+
+    - `flight_agent` — for routes, airlines, cabin classes, prices, availability
+    - `hotel_agent` — for properties, star ratings, amenities, nightly rates
+    - `car_rental_agent` — for vehicles, daily rates, pickup cities
+
+    Rules:
+    1. For multi-component requests (e.g. "plan a trip…"), call each relevant
+        specialist independently in parallel, then merge the results into one
+        itinerary.
+    2. Always cite the Zava ID (e.g. ZV-FL-013, ZV-HT-010, ZV-CR-011), price, and
+        dates in your recommendation.
+    3. Never fabricate flights, hotels, vehicles, prices, or IDs. If a specialist
+        returns no results, say so plainly.
+    4. Lead with the recommendation, then a short reason it fits. Offer one
+        meaningful alternative when useful. Currency is USD unless stated.
+    5. Decline non-travel, unsafe, or policy-violating requests in one sentence.
+    """;
+
+AIAgent concierge = WithTelemetry(projectClient.AsAIAgent(
     model: deployment,
     name: "zava-concierge",
     description: "Zava Travel Concierge — orchestrates flight, hotel, and car rental specialists to plan complete itineraries.",
@@ -219,13 +241,21 @@ AIAgent concierge = projectClient.AsAIAgent(
         flightAgent.AsAIFunction(),
         hotelAgent.AsAIFunction(),
         carRentalAgent.AsAIFunction(),
-    ]);
+    ]));
 
 // ---------------------------------------------------------------------------
 // Host the Concierge over the Foundry Responses protocol on :8088
 // ---------------------------------------------------------------------------
 
 var builder = AgentHost.CreateBuilder(args);
+
+// The hosting runtime already exports telemetry to the project's Application
+// Insights (via APPLICATIONINSIGHTS_CONNECTION_STRING). We only need to register
+// our custom ActivitySource so the agents' `gen_ai.*` spans flow into that same
+// pipeline and show up as conversation turns in the Foundry Traces view.
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing.AddSource(TelemetrySourceName));
+
 builder.Services.AddFoundryResponses(concierge);
 builder.RegisterProtocol("responses", endpoints => endpoints.MapFoundryResponses());
 
